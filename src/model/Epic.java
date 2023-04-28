@@ -1,25 +1,26 @@
 package model;
 
-import java.util.HashSet;
+import java.util.ArrayList;
+import java.util.List;
 
 public class Epic extends Task {
-    private HashSet<Integer> subtaskIds;
+    private List<Integer> subtaskIds;
 
     public Epic(String name, String description) {
         super(name, description, Status.NEW);
-        subtaskIds = new HashSet<>();
+        subtaskIds = new ArrayList<>();
     }
 
-    public HashSet<Integer> getSubtaskIds() {
+    public List<Integer> getSubtaskIds() {
         return subtaskIds;
     }
 
-    public void addSubTaskId(int id) {
+    public void addSubtaskId(int id) {
         subtaskIds.add(id);
     }
 
-    public void removeSubTaskId(int id) {
-        subtaskIds.remove(id);
+    public void removeSubtaskId(int id) {
+        subtaskIds.remove(Integer.valueOf(id));
     }
 
     @Override

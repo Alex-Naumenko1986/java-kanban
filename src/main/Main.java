@@ -1,9 +1,6 @@
 package main;
 
-import model.Epic;
-import model.Status;
-import model.SubTask;
-import model.Task;
+import model.*;
 import service.TaskManager;
 import java.util.ArrayList;
 
@@ -18,18 +15,18 @@ public class Main {
 
         Epic epic1 = new Epic("Переезд", "Переехать в новую квартиру");
         taskManager.createNewEpic(epic1);
-        SubTask subTask1 = new SubTask(epic1.getId(), "Вещи", "Собрать вещи для переезда",
+        Subtask subtask1 = new Subtask(epic1.getId(), "Вещи", "Собрать вещи для переезда",
                 Status.NEW);
-        SubTask subTask2 = new SubTask(epic1.getId(), "Кот", "Перевезти кота в новую квартиру",
+        Subtask subtask2 = new Subtask(epic1.getId(), "Кот", "Перевезти кота в новую квартиру",
                 Status.NEW);
-        taskManager.createNewSubtask(subTask1);
-        taskManager.createNewSubtask(subTask2);
+        taskManager.createNewSubtask(subtask1);
+        taskManager.createNewSubtask(subtask2);
 
         Epic epic2 = new Epic("Кофемашина", "Купить новую кофемашину");
         taskManager.createNewEpic(epic2);
-        SubTask subTask3 = new SubTask(epic2.getId(), "Магазин", "Съездить в магазин",
+        Subtask subtask3 = new Subtask(epic2.getId(), "Магазин", "Съездить в магазин",
                 Status.IN_PROGRESS);
-        taskManager.createNewSubtask(subTask3);
+        taskManager.createNewSubtask(subtask3);
 
         printAllTasks();
 
@@ -38,12 +35,12 @@ public class Main {
         taskManager.updateTask(task1);
         taskManager.updateTask(task2);
 
-        subTask1.setStatus(Status.IN_PROGRESS);
-        subTask2.setStatus(Status.IN_PROGRESS);
-        subTask3.setStatus(Status.DONE);
-        taskManager.updateSubTask(subTask1);
-        taskManager.updateSubTask(subTask2);
-        taskManager.updateSubTask(subTask3);
+        subtask1.setStatus(Status.IN_PROGRESS);
+        subtask2.setStatus(Status.IN_PROGRESS);
+        subtask3.setStatus(Status.DONE);
+        taskManager.updateSubtask(subtask1);
+        taskManager.updateSubtask(subtask2);
+        taskManager.updateSubtask(subtask3);
 
         System.out.println();
         System.out.println("Задачи после изменения статусов:");
@@ -68,9 +65,9 @@ public class Main {
             System.out.println(epic);
         }
 
-        ArrayList<SubTask> subTasks = taskManager.getAllSubTasks();
-        for (SubTask subTask : subTasks) {
-            System.out.println(subTask);
+        ArrayList<Subtask> subtasks = taskManager.getAllSubtasks();
+        for (Subtask subtask : subtasks) {
+            System.out.println(subtask);
         }
     }
 }
