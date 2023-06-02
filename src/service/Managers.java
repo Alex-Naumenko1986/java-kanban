@@ -9,6 +9,8 @@ public class Managers {
     private static TaskManager taskManager;
     private static HistoryManager historyManager;
 
+    private Managers(){}
+
     public static TaskManager getDefault() {
         if (taskManager == null) {
             taskManager = new InMemoryTaskManager();
