@@ -1,6 +1,9 @@
 package service.task;
 
-import model.*;
+import model.Epic;
+import model.Status;
+import model.Subtask;
+import model.Task;
 import service.Managers;
 import service.history.HistoryManager;
 
@@ -10,10 +13,10 @@ import java.util.List;
 
 public class InMemoryTaskManager implements TaskManager {
     private int newTaskId;
-    private HashMap<Integer, Task> idToTask;
-    private HashMap<Integer, Subtask> idToSubtask;
-    private HashMap<Integer, Epic> idToEpic;
-    private HistoryManager historyManager;
+    protected HashMap<Integer, Task> idToTask;
+    protected HashMap<Integer, Subtask> idToSubtask;
+    protected HashMap<Integer, Epic> idToEpic;
+    protected HistoryManager historyManager;
 
     public InMemoryTaskManager() {
         newTaskId = 0;
@@ -176,6 +179,11 @@ public class InMemoryTaskManager implements TaskManager {
                 updateEpicStatus(epicId);
             }
         }
+    }
+
+    @Override
+    public List<Task> getHistory() {
+        return historyManager.getHistory();
     }
 
     @Override

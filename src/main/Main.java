@@ -1,7 +1,10 @@
 package main;
 
-import model.*;
-import service.*;
+import model.Epic;
+import model.Status;
+import model.Subtask;
+import model.Task;
+import service.Managers;
 import service.history.HistoryManager;
 import service.task.TaskManager;
 

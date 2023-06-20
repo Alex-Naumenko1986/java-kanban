@@ -1,7 +1,11 @@
 package service.task;
 
-import model.*;
+import model.Epic;
+import model.Subtask;
+import model.Task;
+
 import java.util.ArrayList;
+import java.util.List;
 
 public interface TaskManager {
     ArrayList<Task> getAllTasks();
@@ -21,6 +25,10 @@ public interface TaskManager {
     void updateSubtask(Subtask subtask);
     void removeTask(int id);
     void removeEpic(int id);
+
     void removeSubtask(int id);
+
+    List<Task> getHistory();
+
     ArrayList<Subtask> getEpicSubtasks(int epicId);
 }
