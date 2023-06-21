@@ -37,8 +37,7 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
     }
 
     public static void main(String[] args) {
-        File file = new File("resources/task_backup.csv");
-        TaskManager taskManager = new FileBackedTasksManager(file);
+        TaskManager taskManager = Managers.getDefault();
 
         Task task1 = new Task("Корм", "Купить корм для хомяка", Status.NEW);
         Task task2 = new Task("Фитнес", "Сходить в спортзал", Status.NEW);
@@ -78,7 +77,7 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
         printTasks(taskManager.getHistory());
         System.out.println();
 
-        TaskManager taskManager2 = FileBackedTasksManager.loadFromFile(file);
+        TaskManager taskManager2 = Managers.loadTaskManagerFromFile();
 
         System.out.println("Список задач в менеджере задач после восстановления данных из файла:");
         printTasks(taskManager2.getAllTasks());
@@ -211,8 +210,11 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
         try {
             content = Files.readString(Path.of(file.getPath()));
         } catch (IOException e) {
-            throw new ManagerSaveException("Ошибка при чтении из файла: " + file.getPath());
+            throw new ManagerSaveException("Ошибка при чтении из файла: " + file.getPath() +
+                    ", произошло исключение:" + e);
         }
+
+        validateContentsOfFile(file, content);
 
         String[] lines = content.split("\n");
         int indexOfEmptyLine = findIndexOfEmptyLine(lines);
@@ -246,6 +248,44 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
         return new FileBackedTasksManager(historyManager, idToTask, idToEpic, idToSubtask, file);
     }
 
+    private static void validateContentsOfFile(File file, String content) {
+        String[] lines = content.split("\n");
+        int minLinesInFile = 3;
+        if (lines.length < minLinesInFile) {
+            throw new ManagerSaveException("Неверный формат файла: " + file.getPath() + ". Количество строк в файле" +
+                    "должно быть не менее " + minLinesInFile);
+        }
+
+        int indexOfEmptyLine = findIndexOfEmptyLine(lines);
+        if (indexOfEmptyLine == -1) {
+            throw new ManagerSaveException("Неверный формат файла: " + file.getPath() + ". В файле отсутствует " +
+                    "пустая строка, разделяющая задачи и историю просмотров.");
+        }
+
+        for (int i = 1; i < indexOfEmptyLine; i++) {
+            String[] parts = lines[i].split(",");
+            switch (TaskType.valueOf(parts[1])) {
+                case TASK:
+                case EPIC:
+                    if (parts.length < 5) {
+                        throw new ManagerSaveException("Неверный формат файла:" + file.getPath() + ". " +
+                                "Недостаточное количество элементов в строке: " + (i + 1));
+                    }
+                    break;
+                case SUBTASK:
+                    if (parts.length < 6) {
+                        throw new ManagerSaveException("Неверный формат файла:" + file.getPath() + ". " +
+                                "Недостаточное количество элементов в строке: " + (i + 1));
+                    }
+            }
+        }
+
+        if (lines.length < indexOfEmptyLine + 2) {
+            throw new ManagerSaveException("Неверный формат файла:" + file.getPath() + ". " +
+                    "Отсутствует строка с информацией об истории просмотров задач");
+        }
+    }
+
     private void save() {
         StringBuilder sb = new StringBuilder();
         boolean isEmpty = true;
@@ -276,7 +316,8 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
              BufferedWriter bufferedWriter = new BufferedWriter(fileWriter)) {
             bufferedWriter.write(sb.toString());
         } catch (IOException e) {
-            throw new ManagerSaveException("Ошибка при попытке записи в файл: " + fileForSaving.getPath());
+            throw new ManagerSaveException("Ошибка при попытке записи в файл: " + fileForSaving.getPath() +
+                    ", произошло исключение: " + e);
         }
     }
 
@@ -341,11 +382,15 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
             sb.append(",");
         }
         removeLastComma(sb);
-        return sb.toString();
+        String value = sb.toString();
+        return value.isEmpty() ? "null" : value;
     }
 
     private static List<Integer> historyFromString(String value) {
         List<Integer> historyIds = new ArrayList<>();
+        if (value.equals("null")) {
+            return historyIds;
+        }
         String[] parts = value.split(",");
         for (String part : parts) {
             historyIds.add(Integer.parseInt(part));
