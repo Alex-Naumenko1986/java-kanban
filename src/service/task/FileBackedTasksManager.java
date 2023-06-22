@@ -87,7 +87,6 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
 
         System.out.println("История просмоторов задач после восстановления данных из файла:");
         printTasks(taskManager2.getHistory());
-
     }
 
     private static void printTasks(List<Task> tasks) {
@@ -210,8 +209,8 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
         try {
             content = Files.readString(Path.of(file.getPath()));
         } catch (IOException e) {
-            throw new ManagerSaveException("Ошибка при чтении из файла: " + file.getPath() +
-                    ", произошло исключение:" + e);
+            throw new ManagerSaveException(String.format("Ошибка при чтении из файла: %s" +
+                    ", произошло исключение: %s", file.getPath(), e));
         }
 
         validateContentsOfFile(file, content);
@@ -250,39 +249,43 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
 
     private static void validateContentsOfFile(File file, String content) {
         String[] lines = content.split("\n");
-        int minLinesInFile = 3;
-        if (lines.length < minLinesInFile) {
-            throw new ManagerSaveException("Неверный формат файла: " + file.getPath() + ". Количество строк в файле" +
-                    "должно быть не менее " + minLinesInFile);
+        int minLines = 3;
+        if (lines.length < minLines) {
+            throw new ManagerSaveException(String.format("Неверный формат файла: %s. Количество строк в файле" +
+                    " должно быть не менее %d", file.getPath(), minLines));
         }
 
         int indexOfEmptyLine = findIndexOfEmptyLine(lines);
         if (indexOfEmptyLine == -1) {
-            throw new ManagerSaveException("Неверный формат файла: " + file.getPath() + ". В файле отсутствует " +
-                    "пустая строка, разделяющая задачи и историю просмотров.");
+            throw new ManagerSaveException(String.format("Неверный формат файла: %s. В файле отсутствует " +
+                    "пустая строка, разделяющая задачи и историю просмотров.", file.getPath()));
         }
 
         for (int i = 1; i < indexOfEmptyLine; i++) {
-            String[] parts = lines[i].split(",");
-            switch (TaskType.valueOf(parts[1])) {
-                case TASK:
-                case EPIC:
-                    if (parts.length < 5) {
-                        throw new ManagerSaveException("Неверный формат файла:" + file.getPath() + ". " +
-                                "Недостаточное количество элементов в строке: " + (i + 1));
-                    }
-                    break;
-                case SUBTASK:
-                    if (parts.length < 6) {
-                        throw new ManagerSaveException("Неверный формат файла:" + file.getPath() + ". " +
-                                "Недостаточное количество элементов в строке: " + (i + 1));
-                    }
-            }
+            validateTaskLine(lines[i], i, file);
         }
 
         if (lines.length < indexOfEmptyLine + 2) {
-            throw new ManagerSaveException("Неверный формат файла:" + file.getPath() + ". " +
-                    "Отсутствует строка с информацией об истории просмотров задач");
+            throw new ManagerSaveException(String.format("Неверный формат файла: %s. " +
+                    "Отсутствует строка с информацией об истории просмотров задач", file.getPath()));
+        }
+    }
+
+    private static void validateTaskLine(String line, int lineIndex, File file) {
+        String[] parts = line.split(",");
+        switch (TaskType.valueOf(parts[1])) {
+            case TASK:
+            case EPIC:
+                if (parts.length < 5) {
+                    throw new ManagerSaveException(String.format("Неверный формат файла: %s. " +
+                            "Недостаточное количество элементов в строке: %d", file.getPath(), (lineIndex + 1)));
+                }
+                break;
+            case SUBTASK:
+                if (parts.length < 6) {
+                    throw new ManagerSaveException(String.format("Неверный формат файла: %s. " +
+                            "Недостаточное количество элементов в строке: %d", file.getPath(), (lineIndex + 1)));
+                }
         }
     }
 
@@ -316,8 +319,8 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
              BufferedWriter bufferedWriter = new BufferedWriter(fileWriter)) {
             bufferedWriter.write(sb.toString());
         } catch (IOException e) {
-            throw new ManagerSaveException("Ошибка при попытке записи в файл: " + fileForSaving.getPath() +
-                    ", произошло исключение: " + e);
+            throw new ManagerSaveException(String.format("Ошибка при попытке записи в файл: %s" +
+                    ", произошло исключение: %s", fileForSaving.getPath(), e));
         }
     }
 
