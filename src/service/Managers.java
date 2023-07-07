@@ -16,9 +16,7 @@ public class Managers {
     }
 
     public static TaskManager getDefault() {
-        if (taskManager == null) {
-            taskManager = new FileBackedTasksManager(file);
-        }
+        taskManager = new FileBackedTasksManager(file);
         return taskManager;
     }
 
@@ -28,9 +26,7 @@ public class Managers {
     }
 
     public static HistoryManager getDefaultHistory() {
-        if (historyManager == null) {
-            historyManager = new InMemoryHistoryManager();
-        }
+        historyManager = new InMemoryHistoryManager();
         return historyManager;
     }
 }
