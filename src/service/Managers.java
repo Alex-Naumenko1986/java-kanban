@@ -10,7 +10,7 @@ import java.io.File;
 public class Managers {
     private static TaskManager taskManager;
     private static HistoryManager historyManager;
-    private static File file = new File("resources/task_backup.csv");
+    private static File file = new File("resources/tasks.csv");
 
     private Managers() {
     }

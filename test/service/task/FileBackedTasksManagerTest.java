@@ -1,17 +1,22 @@
 package service.task;
 
 import model.Epic;
-import model.Status;
 import model.Subtask;
 import model.Task;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import service.Managers;
+import service.task.exceptions.ManagerSaveException;
 
-import java.time.LocalDateTime;
+import java.io.BufferedWriter;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+
+//Исключительные случаи, такие как удаление задачи из пустого списка, тестируются в классе TaskManagerTest
 
 class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
     private TaskManager taskManager = Managers.getDefault();
@@ -35,24 +40,19 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
 
     @Test
     void loadingEpicWithNoSubtasks() {
-        Epic epic = new Epic("Test epic", "Test epic description");
-        taskManager.addNewEpic(epic);
+        taskManager.addNewEpic(epic1);
 
         taskManager = Managers.loadTaskManagerFromFile();
         List<Epic> epics = taskManager.getAllEpics();
         assertEquals(1, epics.size(), "Размер полученного списка эпиков не равен 1");
-        assertEquals(epic, epics.get(0), "Эпики не совпадают");
+        assertEquals(epic1, epics.get(0), "Эпики не совпадают");
     }
 
     @Test
     void loadingWithEmptyHistory() {
-        Task task1 = new Task("Test Task1", "Test Task1 description", Status.NEW);
-        Task task2 = new Task("Test Task2", "Test Task2 description", Status.NEW);
         taskManager.addNewTask(task1);
         taskManager.addNewTask(task2);
-
-        Epic epic = new Epic("Test epic", "Test epic description");
-        taskManager.addNewEpic(epic);
+        taskManager.addNewEpic(epic1);
 
         taskManager = Managers.loadTaskManagerFromFile();
 
@@ -62,25 +62,15 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
 
     @Test
     void checkLoadingTasks() {
-        Task task1 = new Task("Test task1", "Test task1 description",
-                LocalDateTime.of(2023, 6, 30, 13, 1), 40, Status.NEW);
-        Task task2 = new Task("Test task2", "Test 2 description",
-                LocalDateTime.of(2023, 6, 30, 12, 0), 60, Status.NEW);
-        taskManager.addNewTask(task1);
-        taskManager.addNewTask(task2);
+        taskManager.addNewTask(taskWithTime1);
+        taskManager.addNewTask(taskWithTime2);
 
-        Epic epic1 = new Epic("Test epic1", "Test epic1 description");
         int epic1Id = taskManager.addNewEpic(epic1);
-        Subtask subtask1 = new Subtask("Test subtask1", "Test subtask1 description",
-                LocalDateTime.of(2023, 6, 30, 11, 15), 40,
-                Status.NEW, epic1Id);
-        Subtask subtask2 = new Subtask("Test subtask2", "Test subtask2 description",
-                LocalDateTime.of(2023, 6, 30, 10, 15), 50,
-                Status.NEW, epic1Id);
-        taskManager.addNewSubtask(subtask1);
-        taskManager.addNewSubtask(subtask2);
+        subtaskWithTime1.setEpicId(epic1Id);
+        subtaskWithTime2.setEpicId(epic1Id);
+        taskManager.addNewSubtask(subtaskWithTime1);
+        taskManager.addNewSubtask(subtaskWithTime2);
 
-        Epic epic2 = new Epic("Test epic2", "Test epic2 description");
         taskManager.addNewEpic(epic2);
 
         taskManager = Managers.loadTaskManagerFromFile();
@@ -88,9 +78,9 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
         List<Epic> savedEpics = taskManager.getAllEpics();
         List<Subtask> savedSubtasks = taskManager.getAllSubtasks();
 
-        List<Task> expectedTasks = List.of(task1, task2);
+        List<Task> expectedTasks = List.of(taskWithTime1, taskWithTime2);
         List<Epic> expectedEpics = List.of(epic1, epic2);
-        List<Subtask> expectedSubtasks = List.of(subtask1, subtask2);
+        List<Subtask> expectedSubtasks = List.of(subtaskWithTime1, subtaskWithTime2);
 
         assertEquals(expectedTasks, savedTasks, "Списки задач не совпадают");
         assertEquals(expectedEpics, savedEpics, "Списки эпиков не совпадают");
@@ -99,23 +89,14 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
 
     @Test
     void checkLoadingHistory() {
-        Task task1 = new Task("Test task1", "Test task1 description",
-                LocalDateTime.of(2023, 6, 30, 13, 1), 40, Status.NEW);
-        Task task2 = new Task("Test task2", "Test 2 description",
-                LocalDateTime.of(2023, 6, 30, 12, 0), 60, Status.NEW);
-        int task1Id = taskManager.addNewTask(task1);
-        int task2Id = taskManager.addNewTask(task2);
+        int task1Id = taskManager.addNewTask(taskWithTime1);
+        int task2Id = taskManager.addNewTask(taskWithTime2);
 
-        Epic epic1 = new Epic("Test epic1", "Test epic1 description");
         int epic1Id = taskManager.addNewEpic(epic1);
-        Subtask subtask1 = new Subtask("Test subtask1", "Test subtask1 description",
-                LocalDateTime.of(2023, 6, 30, 11, 15), 40,
-                Status.NEW, epic1Id);
-        Subtask subtask2 = new Subtask("Test subtask2", "Test subtask2 description",
-                LocalDateTime.of(2023, 6, 30, 10, 15), 50,
-                Status.NEW, epic1Id);
-        int subtask1Id = taskManager.addNewSubtask(subtask1);
-        int subtask2Id = taskManager.addNewSubtask(subtask2);
+        subtaskWithTime1.setEpicId(epic1Id);
+        subtaskWithTime2.setEpicId(epic1Id);
+        int subtask1Id = taskManager.addNewSubtask(subtaskWithTime1);
+        int subtask2Id = taskManager.addNewSubtask(subtaskWithTime2);
 
         taskManager.getTask(task2Id);
         taskManager.getTask(task1Id);
@@ -126,7 +107,7 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
 
         taskManager = Managers.loadTaskManagerFromFile();
 
-        List<Task> expectedHistory = List.of(task1, subtask1, epic1, subtask2, task2);
+        List<Task> expectedHistory = List.of(taskWithTime1, subtaskWithTime1, epic1, subtaskWithTime2, taskWithTime2);
         List<Task> loadedHistory = taskManager.getHistory();
 
         assertEquals(expectedHistory, loadedHistory, "Загруженная история не совпадает с ожидаемой");
@@ -134,29 +115,48 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
 
     @Test
     void checkLoadingPrioritizedTasks() {
-        Task task1 = new Task("Test task1", "Test task1 description",
-                LocalDateTime.of(2023, 6, 30, 13, 1), 40, Status.NEW);
-        Task task2 = new Task("Test task2", "Test 2 description",
-                LocalDateTime.of(2023, 6, 30, 12, 0), 60, Status.NEW);
-        taskManager.addNewTask(task1);
-        taskManager.addNewTask(task2);
+        taskManager.addNewTask(taskWithTime1);
+        taskManager.addNewTask(taskWithTime2);
 
-        Epic epic1 = new Epic("Test epic1", "Test epic1 description");
         int epic1Id = taskManager.addNewEpic(epic1);
-        Subtask subtask1 = new Subtask("Test subtask1", "Test subtask1 description",
-                LocalDateTime.of(2023, 6, 30, 11, 15), 40,
-                Status.NEW, epic1Id);
-        Subtask subtask2 = new Subtask("Test subtask2", "Test subtask2 description",
-                LocalDateTime.of(2023, 6, 30, 10, 15), 50,
-                Status.NEW, epic1Id);
-        taskManager.addNewSubtask(subtask1);
-        taskManager.addNewSubtask(subtask2);
+        subtaskWithTime1.setEpicId(epic1Id);
+        subtaskWithTime2.setEpicId(epic1Id);
+        taskManager.addNewSubtask(subtaskWithTime1);
+        taskManager.addNewSubtask(subtaskWithTime2);
 
         taskManager = Managers.loadTaskManagerFromFile();
 
         List<Task> loadedPrioritizedTasks = taskManager.getPrioritizedTasks();
-        List<Task> expectedPrioritizedTasks = List.of(epic1, subtask2, subtask1, task2, task1);
+        List<Task> expectedPrioritizedTasks = List.of(taskWithTime2, taskWithTime1, epic1, subtaskWithTime2,
+                subtaskWithTime1);
         assertEquals(expectedPrioritizedTasks, loadedPrioritizedTasks, "Загруженный список задач по " +
                 "приоритету не совпадает с ожидаемым");
+    }
+
+    @Test
+    void checkLoadingWithInvalidFileContents() {
+        createInvalidFile();
+        ManagerSaveException exception = assertThrows(ManagerSaveException.class,
+                Managers::loadTaskManagerFromFile);
+        assertEquals("Неверный формат файла: resources\\tasks.csv. " +
+                "Недостаточное количество элементов в строке: 2", exception.getMessage(), "Неверное сообщение" +
+                "исключения");
+    }
+
+    private void createInvalidFile() {
+        StringBuilder sb = new StringBuilder();
+        sb.append("id,type,name,status,description,startTime,duration,endTime,epic");
+        sb.append("\n");
+        sb.append("2,TASK,Test task2,Test 2 description,2023-06-30T12:00,60,2023-06-30T13:00");
+        sb.append("\n\n");
+        sb.append("null");
+
+        try (FileWriter fileWriter = new FileWriter("resources/tasks.csv");
+             BufferedWriter bufferedWriter = new BufferedWriter(fileWriter)) {
+            bufferedWriter.write(sb.toString());
+        } catch (IOException e) {
+            throw new ManagerSaveException(String.format("Ошибка при попытке записи в файл: %s" +
+                    ", произошло исключение: %s", "resources/tasks.csv", e));
+        }
     }
 }

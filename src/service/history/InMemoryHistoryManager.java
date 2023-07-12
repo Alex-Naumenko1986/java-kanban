@@ -26,8 +26,8 @@ public class InMemoryHistoryManager implements HistoryManager {
     }
 
     @Override
-    public void remove(int id) {
-        removeTaskById(id);
+    public boolean remove(int id) {
+        return removeTaskById(id);
     }
 
     @Override
