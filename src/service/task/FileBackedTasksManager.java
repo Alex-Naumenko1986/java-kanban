@@ -22,8 +22,13 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
     private File fileForSaving;
 
     public FileBackedTasksManager(File fileForSaving) {
+        super();
         this.fileForSaving = fileForSaving;
         save();
+    }
+
+    public FileBackedTasksManager() {
+        super();
     }
 
     public FileBackedTasksManager(HistoryManager historyManager, HashMap<Integer, Task> idToTask, HashMap<Integer,
@@ -59,21 +64,24 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
     }
 
     @Override
-    public void updateTask(Task task) {
-        super.updateTask(task);
+    public boolean updateTask(Task task) {
+        boolean isUpdated = super.updateTask(task);
         save();
+        return isUpdated;
     }
 
     @Override
-    public void updateEpic(Epic epic) {
-        super.updateEpic(epic);
+    public boolean updateEpic(Epic epic) {
+        boolean isUpdated = super.updateEpic(epic);
         save();
+        return isUpdated;
     }
 
     @Override
-    public void updateSubtask(Subtask subtask) {
-        super.updateSubtask(subtask);
+    public boolean updateSubtask(Subtask subtask) {
+        boolean isUpdated = super.updateSubtask(subtask);
         save();
+        return isUpdated;
     }
 
     @Override
@@ -228,7 +236,7 @@ public class FileBackedTasksManager extends InMemoryTaskManager {
         }
     }
 
-    private void save() {
+    protected void save() {
         StringBuilder sb = new StringBuilder();
         boolean isEmpty = true;
         sb.append("id,type,name,status,description,startTime,duration,endTime,epic\n");

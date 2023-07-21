@@ -6,16 +6,14 @@ import model.Subtask;
 import model.Task;
 import service.Managers;
 import service.history.HistoryManager;
-import service.task.exceptions.ManagerIllegalOperationException;
-import service.task.exceptions.TimeIntersectionException;
 
 import java.util.*;
 
 public class InMemoryTaskManager implements TaskManager {
     private int newTaskId;
-    protected HashMap<Integer, Task> idToTask;
-    protected HashMap<Integer, Subtask> idToSubtask;
-    protected HashMap<Integer, Epic> idToEpic;
+    protected Map<Integer, Task> idToTask;
+    protected Map<Integer, Subtask> idToSubtask;
+    protected Map<Integer, Epic> idToEpic;
     protected HistoryManager historyManager;
 
     protected Set<Task> prioritizedTasks;
@@ -111,7 +109,10 @@ public class InMemoryTaskManager implements TaskManager {
     public int addNewTask(Task task) {
         int id = generateId();
         task.setId(id);
-        validateOnTimeIntersection(task);
+        if (isIntersectsInTime(task)) {
+            return -1;
+        }
+        ;
         prioritizedTasks.add(task);
         idToTask.put(task.getId(), task);
         return id;
@@ -130,7 +131,10 @@ public class InMemoryTaskManager implements TaskManager {
     public int addNewSubtask(Subtask subtask) {
         int id = generateId();
         subtask.setId(id);
-        validateOnTimeIntersection(subtask);
+        if (isIntersectsInTime(subtask)) {
+            return -1;
+        }
+        ;
         idToSubtask.put(subtask.getId(), subtask);
         Epic epic = idToEpic.get(subtask.getEpicId());
         if (epic != null) {
@@ -138,55 +142,57 @@ public class InMemoryTaskManager implements TaskManager {
             updateEpicTime(subtask.getEpicId());
             updateEpicStatus(subtask.getEpicId());
         } else {
-            throw new ManagerIllegalOperationException(String.format("Попытка добавить подзадачу с несуществующим " +
-                    "эпиком, id эпика: %d", subtask.getEpicId()));
+            idToSubtask.remove(subtask.getId());
+            return -1;
         }
         prioritizedTasks.add(subtask);
         return id;
     }
 
     @Override
-    public void updateTask(Task task) {
+    public boolean updateTask(Task task) {
         if (idToTask.containsKey(task.getId())) {
-            validateOnTimeIntersection(task);
+            if (isIntersectsInTime(task)) {
+                return false;
+            }
             idToTask.replace(task.getId(), task);
             updateTaskInPrioritizedSet(task);
         } else {
-            throw new ManagerIllegalOperationException(String.format("Неверный идентификатор обновляемой задачи. " +
-                    "Задачи с id %d не существует", task.getId()));
+            return false;
         }
+        return true;
     }
 
     @Override
-    public void updateEpic(Epic epic) {
+    public boolean updateEpic(Epic epic) {
         if (idToEpic.containsKey(epic.getId())) {
             idToEpic.replace(epic.getId(), epic);
             updateTaskInPrioritizedSet(epic);
+            return true;
         } else {
-            throw new ManagerIllegalOperationException(String.format("Неверный идентификатор обновляемого эпика. " +
-                    "Эпика с id %d не существует", epic.getId()));
+            return false;
         }
     }
 
     @Override
-    public void updateSubtask(Subtask subtask) {
+    public boolean updateSubtask(Subtask subtask) {
         if (idToSubtask.containsKey(subtask.getId())) {
-            validateOnTimeIntersection(subtask);
+            if (isIntersectsInTime(subtask)) {
+                return false;
+            }
+            Epic epic = idToEpic.get(subtask.getEpicId());
+            if (epic == null) {
+                return false;
+            }
             idToSubtask.replace(subtask.getId(), subtask);
             updateTaskInPrioritizedSet(subtask);
-            Epic epic = idToEpic.get(subtask.getEpicId());
-            if (epic != null) {
-                updateEpicStatus(subtask.getEpicId());
-                updateEpicTime(subtask.getEpicId());
-                updateTaskInPrioritizedSet(epic);
-            } else {
-                throw new ManagerIllegalOperationException(String.format("Попытка обновить подзадачу с " +
-                        "несуществующим эпиком, id эпика: %d", subtask.getEpicId()));
-            }
+            updateEpicStatus(subtask.getEpicId());
+            updateEpicTime(subtask.getEpicId());
+            updateTaskInPrioritizedSet(epic);
         } else {
-            throw new ManagerIllegalOperationException(String.format("Неверный идентификатор обновляемой подзадачи. " +
-                    "Подзадачи с id %d не существует", subtask.getId()));
+            return false;
         }
+        return true;
     }
 
     @Override
@@ -262,11 +268,13 @@ public class InMemoryTaskManager implements TaskManager {
             for (Integer subtaskId : epicSubtasksIds) {
                 subtasksOfEpic.add(idToSubtask.get(subtaskId));
             }
-        } else {
-            throw new ManagerIllegalOperationException(String.format("Попытка получить список подзадач для " +
-                    "несуществующего эпика с id %d", epicId));
         }
         return subtasksOfEpic;
+    }
+
+    @Override
+    public void load() {
+
     }
 
     private int generateId() {
@@ -342,12 +350,13 @@ public class InMemoryTaskManager implements TaskManager {
     }
 
 
-    private void validateOnTimeIntersection(Task task) {
+    private boolean isIntersectsInTime(Task task) {
         for (Task prioritizedTask : prioritizedTasks) {
-            if (prioritizedTask.intersectsWith(task)) {
-                throw new TimeIntersectionException(String.format("Задачи с id: %d и id: %d пересекаются " +
-                        "по времени выполнения", prioritizedTask.getId(), task.getId()));
+            if (!(prioritizedTask instanceof Epic) && !(prioritizedTask.getId().equals(task.getId())) &&
+                    prioritizedTask.intersectsWith(task)) {
+                return true;
             }
         }
+        return false;
     }
 }

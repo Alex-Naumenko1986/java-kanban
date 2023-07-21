@@ -6,6 +6,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.Objects;
 
 public class Task implements Comparable<Task> {
+    private String type;
     private Integer id;
     private String name;
 
@@ -15,12 +16,17 @@ public class Task implements Comparable<Task> {
 
     private int duration;
 
-    private DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy, HH:mm");
+    private static DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy, HH:mm");
 
 
     private Status status;
 
+    public Task() {
+        this.type = "Task";
+    }
+
     public Task(Integer id, String name, String description, Status status) {
+        this();
         this.id = id;
         this.name = name;
         this.description = description;
@@ -30,6 +36,7 @@ public class Task implements Comparable<Task> {
     }
 
     public Task(String name, String description, Status status) {
+        this();
         this.id = null;
         this.name = name;
         this.description = description;
@@ -39,6 +46,7 @@ public class Task implements Comparable<Task> {
     }
 
     public Task(Integer id, String name, String description, LocalDateTime startTime, int duration, Status status) {
+        this();
         this.id = id;
         this.name = name;
         this.description = description;
@@ -48,6 +56,7 @@ public class Task implements Comparable<Task> {
     }
 
     public Task(String name, String description, LocalDateTime startTime, int duration, Status status) {
+        this();
         this.name = name;
         this.description = description;
         this.startTime = startTime;
@@ -199,5 +208,13 @@ public class Task implements Comparable<Task> {
         ;
 
         return false;
+    }
+
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
     }
 }

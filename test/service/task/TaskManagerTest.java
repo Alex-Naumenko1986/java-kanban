@@ -6,8 +6,6 @@ import model.Subtask;
 import model.Task;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import service.task.exceptions.ManagerIllegalOperationException;
-import service.task.exceptions.TimeIntersectionException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -190,11 +188,8 @@ abstract class TaskManagerTest<T extends TaskManager> {
     void checkAddingNewSubtaskWithWrongEpicId() {
         subtask1.setEpicId(1);
 
-        ManagerIllegalOperationException exception = assertThrows(ManagerIllegalOperationException.class,
-                () -> taskManager.addNewSubtask(subtask1));
-
-        assertEquals("Попытка добавить подзадачу с несуществующим эпиком, id эпика: 1",
-                exception.getMessage());
+        int id = taskManager.addNewSubtask(subtask1);
+        assertEquals(-1, id, "Подзадача с неверным id эпика была обновлена");
     }
 
     @Test
@@ -206,11 +201,9 @@ abstract class TaskManagerTest<T extends TaskManager> {
 
         subtask1.setEpicId(3);
 
-        ManagerIllegalOperationException exception = assertThrows(ManagerIllegalOperationException.class,
-                () -> taskManager.updateSubtask(subtask1));
+        boolean isUpdated = taskManager.updateSubtask(subtask1);
 
-        assertEquals("Попытка обновить подзадачу с несуществующим эпиком, id эпика: 3",
-                exception.getMessage());
+        assertFalse(isUpdated, "Подзадача с неверным id эпика была обновлена");
     }
 
     @Test
@@ -466,11 +459,8 @@ abstract class TaskManagerTest<T extends TaskManager> {
     @Test
     void updateTaskWithEmptyTaskList() {
         task1.setId(1);
-        ManagerIllegalOperationException exception = assertThrows(ManagerIllegalOperationException.class,
-                () -> taskManager.updateTask(task1));
-
-        assertEquals("Неверный идентификатор обновляемой задачи. Задачи с id 1 не существует",
-                exception.getMessage(), "Неверное сообщение исключения");
+        boolean isUpdated = taskManager.updateTask(task1);
+        assertFalse(isUpdated, "Задача была обновлена при пустом списке задач");
     }
 
     @Test
@@ -480,11 +470,8 @@ abstract class TaskManagerTest<T extends TaskManager> {
 
         Task task3 = new Task(3, "Test Task3", "Test Task3 description", Status.NEW);
 
-        ManagerIllegalOperationException exception = assertThrows(ManagerIllegalOperationException.class,
-                () -> taskManager.updateTask(task3));
-
-        assertEquals("Неверный идентификатор обновляемой задачи. Задачи с id 3 не существует",
-                exception.getMessage(), "Неверное сообщение исключения");
+        boolean isUpdated = taskManager.updateTask(task3);
+        assertFalse(isUpdated, "Задача с неверным идентификатором была обновлена");
     }
 
     @Test
@@ -502,11 +489,9 @@ abstract class TaskManagerTest<T extends TaskManager> {
     @Test
     void updateEpicWithEmptyEpicList() {
         epic1.setId(1);
-        ManagerIllegalOperationException exception = assertThrows(ManagerIllegalOperationException.class,
-                () -> taskManager.updateEpic(epic1));
+        boolean isUpdated = taskManager.updateEpic(epic1);
 
-        assertEquals("Неверный идентификатор обновляемого эпика. Эпика с id 1 не существует",
-                exception.getMessage(), "Неверное сообщение исключения");
+        assertFalse(isUpdated, "Эпик был обновлен");
     }
 
     @Test
@@ -517,11 +502,8 @@ abstract class TaskManagerTest<T extends TaskManager> {
         Epic epic3 = new Epic("Test Epic3", "Test Epic3 description");
         epic3.setId(3);
 
-        ManagerIllegalOperationException exception = assertThrows(ManagerIllegalOperationException.class,
-                () -> taskManager.updateEpic(epic3));
-
-        assertEquals("Неверный идентификатор обновляемого эпика. Эпика с id 3 не существует",
-                exception.getMessage(), "Неверное сообщение исключения");
+        boolean isUpdated = taskManager.updateEpic(epic3);
+        assertFalse(isUpdated, "Эпик с неверным идентификатором был обновлен");
     }
 
     @Test
@@ -548,11 +530,9 @@ abstract class TaskManagerTest<T extends TaskManager> {
 
         subtask1.setId(2);
         subtask1.setEpicId(epicId);
-        ManagerIllegalOperationException exception = assertThrows(ManagerIllegalOperationException.class,
-                () -> taskManager.updateSubtask(subtask1));
 
-        assertEquals("Неверный идентификатор обновляемой подзадачи. Подзадачи с id 2 не существует",
-                exception.getMessage(), "Неверное сообщение исключения");
+        boolean isUpdated = taskManager.updateSubtask(subtask1);
+        assertFalse(isUpdated, "Подзадача была обновлена при пустом списке подзадач");
     }
 
     @Test
@@ -563,11 +543,10 @@ abstract class TaskManagerTest<T extends TaskManager> {
         taskManager.addNewSubtask(subtask1);
         subtask2.setEpicId(epicId);
         subtask2.setId(3);
-        ManagerIllegalOperationException exception = assertThrows(ManagerIllegalOperationException.class,
-                () -> taskManager.updateSubtask(subtask2));
+        boolean isUpdated = taskManager.updateSubtask(subtask2);
 
-        assertEquals("Неверный идентификатор обновляемой подзадачи. Подзадачи с id 3 не существует",
-                exception.getMessage(), "Неверное сообщение исключения");
+        assertFalse(isUpdated, "Подзадача с неверным идентификатором была обновлена");
+
     }
 
     @Test
@@ -729,11 +708,8 @@ abstract class TaskManagerTest<T extends TaskManager> {
         subtask1.setEpicId(epicId);
         taskManager.addNewSubtask(subtask1);
 
-        ManagerIllegalOperationException exception = assertThrows(ManagerIllegalOperationException.class,
-                () -> taskManager.getEpicSubtasks(10));
-
-        assertEquals("Попытка получить список подзадач для несуществующего эпика с id 10",
-                exception.getMessage());
+        List<Subtask> subtasks = taskManager.getEpicSubtasks(10);
+        assertTrue(subtasks.isEmpty(), "Полученный список подзадач не пустой");
     }
 
     @Test
@@ -958,11 +934,8 @@ abstract class TaskManagerTest<T extends TaskManager> {
         taskWithTime2.setStartTime(LocalDateTime.of(2023, 6, 30, 13, 29));
         taskWithTime2.setDuration(60);
         taskManager.addNewTask(taskWithTime1);
-        TimeIntersectionException exception = assertThrows(TimeIntersectionException.class,
-                () -> taskManager.addNewTask(taskWithTime2));
-
-        assertEquals("Задачи с id: 1 и id: 2 пересекаются по времени выполнения", exception.getMessage(),
-                "Неверное сообщение исключения");
+        int taskId = taskManager.addNewTask(taskWithTime2);
+        assertEquals(-1, taskId, "Задача, пересекающаяся по времени, была добавлена");
     }
 
     @Test
@@ -972,11 +945,8 @@ abstract class TaskManagerTest<T extends TaskManager> {
         taskWithTime2.setStartTime(LocalDateTime.of(2023, 6, 30, 13, 30));
         taskWithTime2.setDuration(60);
         taskManager.addNewTask(taskWithTime1);
-        TimeIntersectionException exception = assertThrows(TimeIntersectionException.class,
-                () -> taskManager.addNewTask(taskWithTime2));
-
-        assertEquals("Задачи с id: 1 и id: 2 пересекаются по времени выполнения", exception.getMessage(),
-                "Неверное сообщение исключения");
+        int taskId = taskManager.addNewTask(taskWithTime2);
+        assertEquals(-1, taskId, "Задача, пересекающаяся по времени, была добавлена");
     }
 
     @Test
@@ -986,11 +956,8 @@ abstract class TaskManagerTest<T extends TaskManager> {
         taskWithTime2.setStartTime(LocalDateTime.of(2023, 6, 30, 13, 40));
         taskWithTime2.setDuration(30);
         taskManager.addNewTask(taskWithTime1);
-        TimeIntersectionException exception = assertThrows(TimeIntersectionException.class,
-                () -> taskManager.addNewTask(taskWithTime2));
-
-        assertEquals("Задачи с id: 1 и id: 2 пересекаются по времени выполнения", exception.getMessage(),
-                "Неверное сообщение исключения");
+        int taskId = taskManager.addNewTask(taskWithTime2);
+        assertEquals(-1, taskId, "Задача, пересекающаяся по времени, была добавлена");
     }
 
     @Test
@@ -1000,11 +967,8 @@ abstract class TaskManagerTest<T extends TaskManager> {
         taskWithTime2.setStartTime(LocalDateTime.of(2023, 6, 30, 13, 30));
         taskWithTime2.setDuration(60);
         taskManager.addNewTask(taskWithTime1);
-        TimeIntersectionException exception = assertThrows(TimeIntersectionException.class,
-                () -> taskManager.addNewTask(taskWithTime2));
-
-        assertEquals("Задачи с id: 1 и id: 2 пересекаются по времени выполнения", exception.getMessage(),
-                "Неверное сообщение исключения");
+        int taskId = taskManager.addNewTask(taskWithTime2);
+        assertEquals(-1, taskId, "Задача, пересекающаяся по времени, была добавлена");
     }
 
     @Test
@@ -1014,8 +978,8 @@ abstract class TaskManagerTest<T extends TaskManager> {
         taskWithTime2.setStartTime(LocalDateTime.of(2023, 6, 30, 13, 30));
         taskWithTime2.setDuration(60);
         taskManager.addNewTask(taskWithTime1);
-        assertDoesNotThrow(() -> taskManager.addNewTask(taskWithTime2), "Было выброшено исключение" +
-                " при добавлении задач, не пересекающихся по времени");
+        int id = taskManager.addNewTask(taskWithTime2);
+        assertNotEquals(-1, id, "Задача не была добавлена");
     }
 
     @Test
@@ -1025,7 +989,7 @@ abstract class TaskManagerTest<T extends TaskManager> {
         taskWithTime2.setStartTime(LocalDateTime.of(2023, 6, 30, 13, 30));
         taskWithTime2.setDuration(60);
         taskManager.addNewTask(taskWithTime1);
-        assertDoesNotThrow(() -> taskManager.addNewTask(taskWithTime2), "Было выброшено исключение при добавлении" +
-                "задач, не пересекающихся по времени");
+        int id = taskManager.addNewTask(taskWithTime2);
+        assertNotEquals(-1, id, "Задача не была добавлена");
     }
 }

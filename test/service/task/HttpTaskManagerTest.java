@@ -3,33 +3,41 @@ package service.task;
 import model.Epic;
 import model.Subtask;
 import model.Task;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import service.task.exceptions.ManagerSaveException;
+import server.KVServer;
+import service.Managers;
 
-import java.io.BufferedWriter;
-import java.io.File;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
 
-
-class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
-    File file = new File("resources/tasks.csv");
-
-    private TaskManager taskManager = new FileBackedTasksManager(file);
+public class HttpTaskManagerTest extends TaskManagerTest<TaskManager> {
+    private TaskManager taskManager;
+    private KVServer kvServer;
 
     @BeforeEach
     void beforeEach() {
+        try {
+            kvServer = new KVServer();
+        } catch (IOException e) {
+            System.out.println("При создании сервера произошло исключение " + e);
+        }
+        kvServer.start();
+        taskManager = Managers.getDefault();
         super.setTaskManager(taskManager);
+    }
+
+    @AfterEach
+    void afterEach() {
+        kvServer.stop();
     }
 
     @Test
     void loadingWithEmptyTaskList() {
-        taskManager = FileBackedTasksManager.loadFromFile(file);
+        taskManager.load();
         List<Task> tasks = taskManager.getAllTasks();
         List<Subtask> subtasks = taskManager.getAllSubtasks();
         List<Epic> epics = taskManager.getAllEpics();
@@ -43,7 +51,7 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
     void loadingEpicWithNoSubtasks() {
         taskManager.addNewEpic(epic1);
 
-        taskManager = FileBackedTasksManager.loadFromFile(file);
+        taskManager.load();
         List<Epic> epics = taskManager.getAllEpics();
         assertEquals(1, epics.size(), "Размер полученного списка эпиков не равен 1");
         assertEquals(epic1, epics.get(0), "Эпики не совпадают");
@@ -55,7 +63,7 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
         taskManager.addNewTask(task2);
         taskManager.addNewEpic(epic1);
 
-        taskManager = FileBackedTasksManager.loadFromFile(file);
+        taskManager.load();
 
         List<Task> history = taskManager.getHistory();
         assertEquals(0, history.size(), "Размер полученной истории не равен 0");
@@ -74,7 +82,7 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
 
         taskManager.addNewEpic(epic2);
 
-        taskManager = FileBackedTasksManager.loadFromFile(file);
+        taskManager.load();
         List<Task> savedTasks = taskManager.getAllTasks();
         List<Epic> savedEpics = taskManager.getAllEpics();
         List<Subtask> savedSubtasks = taskManager.getAllSubtasks();
@@ -106,7 +114,7 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
         taskManager.getSubtask(subtask2Id);
         taskManager.getTask(task2Id);
 
-        taskManager = FileBackedTasksManager.loadFromFile(file);
+        taskManager.load();
 
         List<Task> expectedHistory = List.of(taskWithTime1, subtaskWithTime1, epic1, subtaskWithTime2, taskWithTime2);
         List<Task> loadedHistory = taskManager.getHistory();
@@ -125,39 +133,12 @@ class FileBackedTasksManagerTest extends TaskManagerTest<TaskManager> {
         taskManager.addNewSubtask(subtaskWithTime1);
         taskManager.addNewSubtask(subtaskWithTime2);
 
-        taskManager = FileBackedTasksManager.loadFromFile(file);
+        taskManager.load();
 
         List<Task> loadedPrioritizedTasks = taskManager.getPrioritizedTasks();
         List<Task> expectedPrioritizedTasks = List.of(taskWithTime2, taskWithTime1, epic1, subtaskWithTime2,
                 subtaskWithTime1);
         assertEquals(expectedPrioritizedTasks, loadedPrioritizedTasks, "Загруженный список задач по " +
                 "приоритету не совпадает с ожидаемым");
-    }
-
-    @Test
-    void checkLoadingWithInvalidFileContents() {
-        createInvalidFile();
-        ManagerSaveException exception = assertThrows(ManagerSaveException.class,
-                () -> FileBackedTasksManager.loadFromFile(file));
-        assertEquals("Неверный формат файла: resources\\tasks.csv. " +
-                "Недостаточное количество элементов в строке: 2", exception.getMessage(), "Неверное сообщение" +
-                "исключения");
-    }
-
-    private void createInvalidFile() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("id,type,name,status,description,startTime,duration,endTime,epic");
-        sb.append("\n");
-        sb.append("2,TASK,Test task2,Test 2 description,2023-06-30T12:00,60,2023-06-30T13:00");
-        sb.append("\n\n");
-        sb.append("null");
-
-        try (FileWriter fileWriter = new FileWriter("resources/tasks.csv");
-             BufferedWriter bufferedWriter = new BufferedWriter(fileWriter)) {
-            bufferedWriter.write(sb.toString());
-        } catch (IOException e) {
-            throw new ManagerSaveException(String.format("Ошибка при попытке записи в файл: %s" +
-                    ", произошло исключение: %s", "resources/tasks.csv", e));
-        }
     }
 }

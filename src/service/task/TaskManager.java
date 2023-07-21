@@ -32,11 +32,11 @@ public interface TaskManager {
 
     int addNewSubtask(Subtask subtask);
 
-    void updateTask(Task task);
+    boolean updateTask(Task task);
 
-    void updateEpic(Epic epic);
+    boolean updateEpic(Epic epic);
 
-    void updateSubtask(Subtask subtask);
+    boolean updateSubtask(Subtask subtask);
 
     boolean removeTask(int id);
 
@@ -49,4 +49,6 @@ public interface TaskManager {
     List<Task> getPrioritizedTasks();
 
     ArrayList<Subtask> getEpicSubtasks(int epicId);
+
+    void load();
 }

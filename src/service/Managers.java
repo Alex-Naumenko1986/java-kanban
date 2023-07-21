@@ -1,27 +1,25 @@
 package service;
 
+import com.google.gson.Gson;
 import service.history.HistoryManager;
 import service.history.InMemoryHistoryManager;
-import service.task.FileBackedTasksManager;
+import service.task.HttpTaskManager;
 import service.task.TaskManager;
 
-import java.io.File;
+import java.net.URI;
 
 public class Managers {
     private static TaskManager taskManager;
     private static HistoryManager historyManager;
-    private static File file = new File("resources/tasks.csv");
+
+    private static Gson gson;
+    private static URI url = URI.create("http://localhost:8078");
 
     private Managers() {
     }
 
     public static TaskManager getDefault() {
-        taskManager = new FileBackedTasksManager(file);
-        return taskManager;
-    }
-
-    public static TaskManager loadTaskManagerFromFile() {
-        taskManager = FileBackedTasksManager.loadFromFile(file);
+        taskManager = new HttpTaskManager(url);
         return taskManager;
     }
 
@@ -29,4 +27,13 @@ public class Managers {
         historyManager = new InMemoryHistoryManager();
         return historyManager;
     }
+
+    public static Gson getGson() {
+        if (gson == null) {
+            gson = new Gson();
+        }
+        return gson;
+    }
+
+
 }
