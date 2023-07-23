@@ -9,8 +9,6 @@ import service.task.TaskManager;
 import java.net.URI;
 
 public class Managers {
-    private static TaskManager taskManager;
-    private static HistoryManager historyManager;
 
     private static Gson gson;
     private static URI url = URI.create("http://localhost:8078");
@@ -19,13 +17,11 @@ public class Managers {
     }
 
     public static TaskManager getDefault() {
-        taskManager = new HttpTaskManager(url);
-        return taskManager;
+        return new HttpTaskManager(url);
     }
 
     public static HistoryManager getDefaultHistory() {
-        historyManager = new InMemoryHistoryManager();
-        return historyManager;
+        return new InMemoryHistoryManager();
     }
 
     public static Gson getGson() {

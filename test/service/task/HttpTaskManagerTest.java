@@ -3,10 +3,13 @@ package service.task;
 import model.Epic;
 import model.Subtask;
 import model.Task;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import server.KVServer;
+import server.exceptions.ServerCreateException;
 import service.Managers;
 
 import java.io.IOException;
@@ -17,13 +20,16 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 public class HttpTaskManagerTest extends TaskManagerTest<TaskManager> {
     private TaskManager taskManager;
     private KVServer kvServer;
+    Logger logger;
 
     @BeforeEach
     void beforeEach() {
+        logger = LogManager.getLogger(HttpTaskManagerTest.class);
         try {
             kvServer = new KVServer();
         } catch (IOException e) {
-            System.out.println("При создании сервера произошло исключение " + e);
+            logger.error("При создании сервера произошло исключение: " + e);
+            throw new ServerCreateException("При создании сервера произошло исключение " + e);
         }
         kvServer.start();
         taskManager = Managers.getDefault();

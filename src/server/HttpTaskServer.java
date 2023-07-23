@@ -9,6 +9,11 @@ import com.sun.net.httpserver.HttpServer;
 import model.Epic;
 import model.Subtask;
 import model.Task;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+import server.endpoint_processor.EndpointProcessor;
+import server.exceptions.RequestFailedException;
+import server.exceptions.ResponseFailedException;
 import service.Managers;
 import service.task.TaskManager;
 
@@ -19,7 +24,9 @@ import java.lang.reflect.Type;
 import java.net.InetSocketAddress;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 
 public class HttpTaskServer {
@@ -27,7 +34,8 @@ public class HttpTaskServer {
     private static final Charset DEFAULT_CHARSET = StandardCharsets.UTF_8;
     private Gson gson;
     private HttpServer httpServer;
-    private TaskManager taskManager;
+    private static TaskManager taskManager;
+    private static Logger logger;
 
     public HttpTaskServer() throws IOException {
         taskManager = Managers.getDefault();
@@ -35,6 +43,7 @@ public class HttpTaskServer {
         httpServer.bind(new InetSocketAddress(PORT), 0);
         httpServer.createContext("/tasks", new TaskHandler());
         gson = Managers.getGson();
+        logger = LogManager.getLogger(HttpTaskServer.class);
     }
 
     public void start() {
@@ -52,273 +61,243 @@ public class HttpTaskServer {
     }
 
     class TaskHandler implements HttpHandler {
+        private Map<Pair, EndpointProcessor> endpointMap;
+
+        public TaskHandler() {
+            endpointMap = new HashMap<>();
+            fillEndpointMapWithValues();
+        }
+
         @Override
         public void handle(HttpExchange exchange) {
             String path = exchange.getRequestURI().toString();
-            Endpoint endpoint = getEndpoint(path, exchange.getRequestMethod());
-            switch (endpoint) {
-                case GET_ALL_TASKS:
-                    getAllTasks(exchange);
-                    break;
-                case GET_ALL_EPICS:
-                    getAllEpics(exchange);
-                    break;
-                case GET_ALL_SUBTASKS:
-                    getAllSubtasks(exchange);
-                    break;
-                case GET_TASK:
-                    getTask(exchange, path);
-                    break;
-                case GET_EPIC:
-                    getEpic(exchange, path);
-                    break;
-                case GET_SUBTASK:
-                    getSubtask(exchange, path);
-                    break;
-                case HISTORY:
-                    getHistory(exchange);
-                    break;
-                case GET_EPIC_SUBTASKS:
-                    getEpicSubtasks(exchange, path);
-                    break;
-                case GET_PRIORITIZED_TASKS:
-                    getPrioritizedTasks(exchange);
-                case ADD_OR_UPDATE_TASK:
-                    addOrUpdateTask(exchange);
-                    break;
-                case ADD_OR_UPDATE_SUBTASK:
-                    addOrUpdateSubtask(exchange);
-                    break;
-                case ADD_OR_UPDATE_EPIC:
-                    addOrUpdateEpic(exchange);
-                    break;
-                case REMOVE_ALL_TASKS:
-                    removeAllTasks(exchange);
-                    break;
-                case REMOVE_ALL_SUBTASKS:
-                    removeAllSubtasks(exchange);
-                    break;
-                case REMOVE_ALL_EPICS:
-                    removeAllEpics(exchange);
-                    break;
-                case REMOVE_TASK:
-                    removeTask(exchange, path);
-                    break;
-                case REMOVE_SUBTASK:
-                    removeSubtask(exchange, path);
-                    break;
-                case REMOVE_EPIC:
-                    removeEpic(exchange, path);
-                    break;
-                case UNKNOWN:
-                    writeResponse(exchange, "Неверный запрос", 400);
-            }
+            EndpointProcessor endpointProcessor = getEndpointProcessor(path, exchange.getRequestMethod());
+            endpointProcessor.process(exchange, path, taskManager);
         }
 
-        private void removeEpic(HttpExchange exchange, String path) {
+        private EndpointProcessor getEndpointProcessor(String path, String requestMethod) {
+            for (Map.Entry<Pair, EndpointProcessor> entry : endpointMap.entrySet()) {
+                Pair pair = entry.getKey();
+                if (Pattern.matches(pair.getLeft(), path) && requestMethod.equals(pair.getRight())) {
+                    return entry.getValue();
+                }
+            }
+            return unknownRequestProcessor;
+        }
+
+        EndpointProcessor removeEpic = (exchange, path, taskManager) -> {
             int epicId;
             epicId = getTaskId(PathType.EPIC, path);
-            if (epicId != -1) {
-                boolean isRemoved = taskManager.removeEpic(epicId);
-                String jsonResponse = "{\"isRemoved\": " + isRemoved + "}";
-                writeResponse(exchange, jsonResponse, 200);
-            } else {
-                writeResponse(exchange, "Получен неверный идентификатор эпика", 400);
-            }
-        }
+            boolean isRemoved = taskManager.removeEpic(epicId);
+            String jsonResponse = "{\"isRemoved\": " + isRemoved + "}";
+            writeResponse(exchange, jsonResponse, 200);
+        };
 
-        private void removeSubtask(HttpExchange exchange, String path) {
+        EndpointProcessor removeSubtask = (exchange, path, taskManager) -> {
             int subtaskId;
             subtaskId = getTaskId(PathType.SUBTASK, path);
-            if (subtaskId != -1) {
-                boolean isRemoved = taskManager.removeSubtask(subtaskId);
-                String jsonResponse = "{\"isRemoved\": " + isRemoved + "}";
-                writeResponse(exchange, jsonResponse, 200);
-            } else {
-                writeResponse(exchange, "Получен неверный идентификатор подзадачи", 400);
-            }
-        }
+            boolean isRemoved = taskManager.removeSubtask(subtaskId);
+            String jsonResponse = "{\"isRemoved\": " + isRemoved + "}";
+            writeResponse(exchange, jsonResponse, 200);
+        };
 
-        private void removeTask(HttpExchange exchange, String path) {
+        EndpointProcessor removeTask = (exchange, path, taskManager) -> {
             int taskId;
             taskId = getTaskId(PathType.TASK, path);
-            if (taskId != -1) {
-                boolean isRemoved = taskManager.removeTask(taskId);
-                String jsonResponse = "{\"isRemoved\": " + isRemoved + "}";
-                writeResponse(exchange, jsonResponse, 200);
-            } else {
-                writeResponse(exchange, "Получен неверный идентификатор задачи", 400);
-            }
-        }
+            boolean isRemoved = taskManager.removeTask(taskId);
+            String jsonResponse = "{\"isRemoved\": " + isRemoved + "}";
+            writeResponse(exchange, jsonResponse, 200);
 
-        private void removeAllEpics(HttpExchange exchange) {
+        };
+
+        EndpointProcessor removeAllEpics = (exchange, path, taskManager) -> {
             taskManager.removeAllEpics();
             writeResponse(exchange, "Все эпики удалены", 200);
-        }
+        };
 
-        private void removeAllSubtasks(HttpExchange exchange) {
+        EndpointProcessor removeAllSubtasks = (exchange, path, taskManager) -> {
             taskManager.removeAllSubtasks();
             writeResponse(exchange, "Все подзадачи удалены", 200);
-        }
+        };
 
-        private void removeAllTasks(HttpExchange exchange) {
+        EndpointProcessor removeAllTasks = (exchange, path, taskManager) -> {
             taskManager.removeAllTasks();
             writeResponse(exchange, "Все задачи удалены", 200);
-        }
+        };
 
-        private void addOrUpdateTask(HttpExchange exchange) {
-            InputStream inputStream = exchange.getRequestBody();
-            Type taskType = new TypeToken<Task>() {
-            }.getType();
-            try {
-                String body = new String(inputStream.readAllBytes(), DEFAULT_CHARSET);
-                Task task = gson.fromJson(body, taskType);
-                if (task.getId() == null) {
-                    int id = taskManager.addNewTask(task);
-                    String jsonResponse = "{\"id\": " + id + "}";
-                    writeResponse(exchange, jsonResponse, 200);
-                } else {
-                    boolean isUpdated = taskManager.updateTask(task);
-                    String jsonResponse = "{\"isUpdated\": " + isUpdated + "}";
-                    writeResponse(exchange, jsonResponse, 200);
+        EndpointProcessor addOrUpdateTask = new EndpointProcessor() {
+            @Override
+            public void process(HttpExchange exchange, String path, TaskManager taskManager) {
+
+                InputStream inputStream = exchange.getRequestBody();
+                Type taskType = new TypeToken<Task>() {
+                }.getType();
+                try {
+                    String body = new String(inputStream.readAllBytes(), DEFAULT_CHARSET);
+                    Task task = gson.fromJson(body, taskType);
+                    if (task.getId() == null) {
+                        int id = taskManager.addNewTask(task);
+                        String jsonResponse = "{\"id\": " + id + "}";
+                        writeResponse(exchange, jsonResponse, 200);
+                    } else {
+                        boolean isUpdated = taskManager.updateTask(task);
+                        String jsonResponse = "{\"isUpdated\": " + isUpdated + "}";
+                        writeResponse(exchange, jsonResponse, 200);
+                    }
+                } catch (IOException | JsonSyntaxException exception) {
+                    logger.error("Ошибка при чтении тела запроса при добавлении или " +
+                            "обновлении задачи: " + exception.getMessage());
+                    throw new RequestFailedException("При чтении тела запроса возникла ошибка: "
+                            + exception.getMessage());
                 }
-            } catch (IOException | JsonSyntaxException exception) {
-                System.out.println("Ошибка при чтении тела запроса: " + exception.getMessage());
-                ;
             }
-        }
+        };
 
-        private void addOrUpdateSubtask(HttpExchange exchange) {
-            InputStream inputStream = exchange.getRequestBody();
-            Type subtaskType = new TypeToken<Subtask>() {
-            }.getType();
-            try {
-                String body = new String(inputStream.readAllBytes(), DEFAULT_CHARSET);
-                Subtask subtask = gson.fromJson(body, subtaskType);
-                if (subtask.getId() == null) {
-                    int id = taskManager.addNewSubtask(subtask);
-                    String jsonResponse = "{\"id\": " + id + "}";
-                    writeResponse(exchange, jsonResponse, 200);
-                } else {
-                    boolean isUpdated = taskManager.updateSubtask(subtask);
-                    String jsonResponse = "{\"isUpdated\": " + isUpdated + "}";
-                    writeResponse(exchange, jsonResponse, 200);
+        EndpointProcessor addOrUpdateSubtask = new EndpointProcessor() {
+            @Override
+            public void process(HttpExchange exchange, String path, TaskManager taskManager) {
+                InputStream inputStream = exchange.getRequestBody();
+                Type subtaskType = new TypeToken<Subtask>() {
+                }.getType();
+                try {
+                    String body = new String(inputStream.readAllBytes(), DEFAULT_CHARSET);
+                    Subtask subtask = gson.fromJson(body, subtaskType);
+                    if (subtask.getId() == null) {
+                        int id = taskManager.addNewSubtask(subtask);
+                        String jsonResponse = "{\"id\": " + id + "}";
+                        writeResponse(exchange, jsonResponse, 200);
+                    } else {
+                        boolean isUpdated = taskManager.updateSubtask(subtask);
+                        String jsonResponse = "{\"isUpdated\": " + isUpdated + "}";
+                        writeResponse(exchange, jsonResponse, 200);
+                    }
+                } catch (IOException | JsonSyntaxException exception) {
+                    logger.error("Ошибка при чтении тела запроса при добавлении или " +
+                            "обновлении подзадачи: " + exception.getMessage());
+                    throw new RequestFailedException("При чтении тела запроса возникла ошибка: "
+                            + exception.getMessage());
                 }
-            } catch (IOException | JsonSyntaxException exception) {
-                System.out.println("Ошибка при чтении тела запроса: " + exception.getMessage());
-                ;
             }
-        }
+        };
 
-        private void addOrUpdateEpic(HttpExchange exchange) {
-            InputStream inputStream = exchange.getRequestBody();
-            Type epicType = new TypeToken<Epic>() {
-            }.getType();
-            try {
-                String body = new String(inputStream.readAllBytes(), DEFAULT_CHARSET);
-                Epic epic = gson.fromJson(body, epicType);
-                if (epic.getId() == null) {
-                    int id = taskManager.addNewEpic(epic);
-                    String jsonResponse = "{\"id\": " + id + "}";
-                    writeResponse(exchange, jsonResponse, 200);
-                } else {
-                    boolean isUpdated = taskManager.updateEpic(epic);
-                    String jsonResponse = "{\"isUpdated\": " + isUpdated + "}";
-                    writeResponse(exchange, jsonResponse, 200);
+        EndpointProcessor addOrUpdateEpic = new EndpointProcessor() {
+            @Override
+            public void process(HttpExchange exchange, String path, TaskManager taskManager) {
+                InputStream inputStream = exchange.getRequestBody();
+                Type epicType = new TypeToken<Epic>() {
+                }.getType();
+                try {
+                    String body = new String(inputStream.readAllBytes(), DEFAULT_CHARSET);
+                    Epic epic = gson.fromJson(body, epicType);
+                    if (epic.getId() == null) {
+                        int id = taskManager.addNewEpic(epic);
+                        String jsonResponse = "{\"id\": " + id + "}";
+                        writeResponse(exchange, jsonResponse, 200);
+                    } else {
+                        boolean isUpdated = taskManager.updateEpic(epic);
+                        String jsonResponse = "{\"isUpdated\": " + isUpdated + "}";
+                        writeResponse(exchange, jsonResponse, 200);
+                    }
+                } catch (IOException | JsonSyntaxException exception) {
+                    logger.error("Ошибка при чтении тела запроса при добавлении или " +
+                            "обновлении эпика: " + exception.getMessage());
+                    throw new RequestFailedException("При чтении тела запроса возникла ошибка: "
+                            + exception.getMessage());
                 }
-            } catch (IOException | JsonSyntaxException exception) {
-                System.out.println("Ошибка при чтении тела запроса: " + exception.getMessage());
-                ;
             }
-        }
+        };
 
-        private void getEpicSubtasks(HttpExchange exchange, String path) {
-            int epicId;
-            epicId = getTaskId(PathType.SUBTASKS_OF_EPIC, path);
-            Type subtasksListType = new TypeToken<List<Subtask>>() {
-            }.getType();
-            if (epicId != -1) {
+        EndpointProcessor getEpicSubtasks = new EndpointProcessor() {
+            @Override
+            public void process(HttpExchange exchange, String path, TaskManager taskManager) {
+                int epicId;
+                epicId = getTaskId(PathType.SUBTASKS_OF_EPIC, path);
+                Type subtasksListType = new TypeToken<List<Subtask>>() {
+                }.getType();
                 String subtaskOfEpic = gson.toJson(taskManager.getEpicSubtasks(epicId), subtasksListType);
                 writeResponse(exchange, subtaskOfEpic, 200);
             }
-        }
+        };
 
-        private void getHistory(HttpExchange exchange) {
+        EndpointProcessor getHistory = (exchange, path, taskManager) -> {
             Type historyListType = new TypeToken<List<Task>>() {
             }.getType();
             String history = gson.toJson(taskManager.getHistory(), historyListType);
             writeResponse(exchange, history, 200);
-        }
+        };
 
-        private void getPrioritizedTasks(HttpExchange exchange) {
+        EndpointProcessor getPrioritizedTasks = (exchange, path, taskManager) -> {
             Type prioritizedListType = new TypeToken<List<Task>>() {
             }.getType();
             String prioritizedTasks = gson.toJson(taskManager.getPrioritizedTasks(), prioritizedListType);
             writeResponse(exchange, prioritizedTasks, 200);
-        }
+        };
 
-        private void getSubtask(HttpExchange exchange, String path) {
-            int subtaskId;
-            subtaskId = getTaskId(PathType.SUBTASK, path);
-            if (subtaskId != -1) {
+        EndpointProcessor getSubtask = new EndpointProcessor() {
+            @Override
+            public void process(HttpExchange exchange, String path, TaskManager taskManager) {
+                int subtaskId;
+                subtaskId = getTaskId(PathType.SUBTASK, path);
                 Type subtaskType = new TypeToken<Subtask>() {
                 }.getType();
                 String subtask = gson.toJson(taskManager.getSubtask(subtaskId), subtaskType);
                 writeResponse(exchange, subtask, 200);
-            } else {
-                writeResponse(exchange, "Неверный идентификатор подзадачи в запросе", 400);
             }
-        }
+        };
 
-        private void getEpic(HttpExchange exchange, String path) {
-            int epicId;
-            epicId = getTaskId(PathType.EPIC, path);
-            if (epicId != -1) {
+        EndpointProcessor getEpic = new EndpointProcessor() {
+            @Override
+            public void process(HttpExchange exchange, String path, TaskManager taskManager) {
+                int epicId;
+                epicId = getTaskId(PathType.EPIC, path);
                 Type epicType = new TypeToken<Epic>() {
                 }.getType();
                 String epic = gson.toJson(taskManager.getEpic(epicId), epicType);
                 writeResponse(exchange, epic, 200);
-            } else {
-                writeResponse(exchange, "Неверный идентификатор эпика в запросе", 400);
             }
-        }
+        };
 
-        private void getTask(HttpExchange exchange, String path) {
-            int taskId;
-            taskId = getTaskId(PathType.TASK, path);
-            if (taskId != -1) {
+        EndpointProcessor getTask = new EndpointProcessor() {
+            @Override
+            public void process(HttpExchange exchange, String path, TaskManager taskManager) {
+                int taskId;
+                taskId = getTaskId(PathType.TASK, path);
                 Type taskType = new TypeToken<Task>() {
                 }.getType();
                 String task = gson.toJson(taskManager.getTask(taskId), taskType);
                 writeResponse(exchange, task, 200);
-            } else {
-                writeResponse(exchange, "Неверный идентификтор задачи в запросе", 400);
             }
-        }
+        };
 
-        private void getAllSubtasks(HttpExchange exchange) {
+        EndpointProcessor getAllSubtasks = (exchange, path, taskManager) -> {
             Type subtaskListType = new TypeToken<List<Subtask>>() {
             }.getType();
             String subtasks = gson.toJson(taskManager.getAllSubtasks(), subtaskListType);
             writeResponse(exchange, subtasks, 200);
-        }
+        };
 
-        private void getAllEpics(HttpExchange exchange) {
+        EndpointProcessor getAllEpics = (exchange, path, taskManager) -> {
             Type epicListType = new TypeToken<List<Epic>>() {
             }.getType();
             String epics = gson.toJson(taskManager.getAllEpics(), epicListType);
             writeResponse(exchange, epics, 200);
-        }
+        };
 
-        private void getAllTasks(HttpExchange exchange) {
-            Type taskListType = new TypeToken<List<Task>>() {
-            }.getType();
-            String tasks = gson.toJson(taskManager.getAllTasks(), taskListType);
-            writeResponse(exchange, tasks, 200);
-        }
+        EndpointProcessor getAllTasks = new EndpointProcessor() {
+            @Override
+            public void process(HttpExchange exchange, String path, TaskManager taskManager) {
+                Type taskListType = new TypeToken<List<Task>>() {
+                }.getType();
+                String tasks = gson.toJson(taskManager.getAllTasks(), taskListType);
+                writeResponse(exchange, tasks, 200);
+            }
+        };
+
+        EndpointProcessor unknownRequestProcessor = (exchange, path, taskManager)
+                -> writeResponse(exchange, "Неверный запрос", 400);
+
 
         private int getTaskId(PathType type, String path) {
-            int id = -1;
             String idAsString = "";
             switch (type) {
                 case TASK:
@@ -334,77 +313,70 @@ public class HttpTaskServer {
                     idAsString = path.replace("/tasks/subtask/epic/?id=", "");
             }
             try {
-                id = Integer.parseInt(idAsString);
+                int id = Integer.parseInt(idAsString);
                 return id;
             } catch (NumberFormatException exception) {
-                System.out.println(String.format("При считывании id: %s произошло исключение: %s",
+                logger.error(String.format("При считывании id: %s произошло исключение: %s",
+                        idAsString, exception.getMessage()));
+                throw new RequestFailedException(String.format("При считывании id: %s произошло исключение: %s",
                         idAsString, exception.getMessage()));
             }
-            return -id;
         }
 
-        private Endpoint getEndpoint(String path, String requestMethod) {
-            switch (requestMethod) {
-                case "GET":
-                    if (Pattern.matches("^/tasks/task/$", path)) {
-                        return Endpoint.GET_ALL_TASKS;
-                    }
-                    if (Pattern.matches("^/tasks/subtask/$", path)) {
-                        return Endpoint.GET_ALL_SUBTASKS;
-                    }
-                    if (Pattern.matches("^/tasks/epic/$", path)) {
-                        return Endpoint.GET_ALL_EPICS;
-                    }
-                    if (Pattern.matches("^/tasks/history/$", path)) {
-                        return Endpoint.HISTORY;
-                    }
-                    if (Pattern.matches("^/tasks/$", path)) {
-                        return Endpoint.GET_PRIORITIZED_TASKS;
-                    }
-                    if (Pattern.matches("^/tasks/task/\\?id=\\d+$", path)) {
-                        return Endpoint.GET_TASK;
-                    }
-                    if (Pattern.matches("^/tasks/epic/\\?id=\\d+$", path)) {
-                        return Endpoint.GET_EPIC;
-                    }
-                    if (Pattern.matches("^/tasks/subtask/\\?id=\\d+$", path)) {
-                        return Endpoint.GET_SUBTASK;
-                    }
-                    if (Pattern.matches("^/tasks/subtask/epic/\\?id=\\d+$", path)) {
-                        return Endpoint.GET_EPIC_SUBTASKS;
-                    }
-                case "DELETE":
-                    if (Pattern.matches("^/tasks/task/$", path)) {
-                        return Endpoint.REMOVE_ALL_TASKS;
-                    }
-                    if (Pattern.matches("^/tasks/subtask/$", path)) {
-                        return Endpoint.REMOVE_ALL_SUBTASKS;
-                    }
-                    if (Pattern.matches("^/tasks/epic/$", path)) {
-                        return Endpoint.REMOVE_ALL_EPICS;
-                    }
-                    if (Pattern.matches("^/tasks/task/\\?id=\\d+$", path)) {
-                        return Endpoint.REMOVE_TASK;
-                    }
-                    if (Pattern.matches("^/tasks/epic/\\?id=\\d+$", path)) {
-                        return Endpoint.REMOVE_EPIC;
-                    }
-                    if (Pattern.matches("^/tasks/subtask/\\?id=\\d+$", path)) {
-                        return Endpoint.REMOVE_SUBTASK;
-                    }
-                case "POST":
-                    if (Pattern.matches("^/tasks/task/$", path)) {
-                        return Endpoint.ADD_OR_UPDATE_TASK;
-                    }
-                    if (Pattern.matches("^/tasks/subtask/$", path)) {
-                        return Endpoint.ADD_OR_UPDATE_SUBTASK;
-                    }
-                    if (Pattern.matches("^/tasks/epic/$", path)) {
-                        return Endpoint.ADD_OR_UPDATE_EPIC;
-                    }
-                default:
-                    return Endpoint.UNKNOWN;
-            }
+        private void fillEndpointMapWithValues() {
+            Pair getAllTasksPair = new Pair("^/tasks/task/$", "GET");
+            endpointMap.put(getAllTasksPair, getAllTasks);
+
+            Pair getAllSubtasksPair = new Pair("^/tasks/subtask/$", "GET");
+            endpointMap.put(getAllSubtasksPair, getAllSubtasks);
+
+            Pair getAllEpicsPair = new Pair("^/tasks/epic/$", "GET");
+            endpointMap.put(getAllEpicsPair, getAllEpics);
+
+            Pair historyPair = new Pair("^/tasks/history/$", "GET");
+            endpointMap.put(historyPair, getHistory);
+
+            Pair prioritizedTasksPair = new Pair("^/tasks/$", "GET");
+            endpointMap.put(prioritizedTasksPair, getPrioritizedTasks);
+
+            Pair getTaskPair = new Pair("^/tasks/task/\\?id=\\d+$", "GET");
+            endpointMap.put(getTaskPair, getTask);
+
+            Pair getEpicPair = new Pair("^/tasks/epic/\\?id=\\d+$", "GET");
+            endpointMap.put(getEpicPair, getEpic);
+
+            Pair getSubtaskPair = new Pair("^/tasks/subtask/\\?id=\\d+$", "GET");
+            endpointMap.put(getSubtaskPair, getSubtask);
+
+            Pair getEpicSubtasksPair = new Pair("^/tasks/subtask/epic/\\?id=\\d+$", "GET");
+            endpointMap.put(getEpicSubtasksPair, getEpicSubtasks);
+
+            Pair removeAllTasksPair = new Pair("^/tasks/task/$", "DELETE");
+            endpointMap.put(removeAllTasksPair, removeAllTasks);
+
+            Pair removeAllSubtaskPair = new Pair("^/tasks/subtask/$", "DELETE");
+            endpointMap.put(removeAllSubtaskPair, removeAllSubtasks);
+
+            Pair removeAllEpicsPair = new Pair("^/tasks/epic/$", "DELETE");
+            endpointMap.put(removeAllEpicsPair, removeAllEpics);
+
+            Pair removeTaskPair = new Pair("^/tasks/task/\\?id=\\d+$", "DELETE");
+            endpointMap.put(removeTaskPair, removeTask);
+
+            Pair removeEpicPair = new Pair("^/tasks/epic/\\?id=\\d+$", "DELETE");
+            endpointMap.put(removeEpicPair, removeEpic);
+
+            Pair removeSubtaskPair = new Pair("^/tasks/subtask/\\?id=\\d+$", "DELETE");
+            endpointMap.put(removeSubtaskPair, removeSubtask);
+
+            Pair postTaskPair = new Pair("^/tasks/task/$", "POST");
+            endpointMap.put(postTaskPair, addOrUpdateTask);
+
+            Pair postSubtaskPair = new Pair("^/tasks/subtask/$", "POST");
+            endpointMap.put(postSubtaskPair, addOrUpdateSubtask);
+
+            Pair postEpicPair = new Pair("^/tasks/epic/$", "POST");
+            endpointMap.put(postEpicPair, addOrUpdateEpic);
         }
 
         private void writeResponse(HttpExchange exchange, String responseString, int responseCode) {
@@ -412,19 +384,25 @@ public class HttpTaskServer {
                 try {
                     exchange.sendResponseHeaders(responseCode, 0);
                 } catch (IOException exception) {
-                    System.out.println("При отправке ответа произошло исключение" + exception.getMessage());
+                    logger.error("При отправке пустого ответа произошло исключение" + exception.getMessage());
+                    throw new ResponseFailedException("При отправке пустого тела ответа произошло исключение" +
+                            exception.getMessage());
                 }
             } else {
                 byte[] bytes = responseString.getBytes(DEFAULT_CHARSET);
                 try {
                     exchange.sendResponseHeaders(responseCode, bytes.length);
                 } catch (IOException exception) {
-                    System.out.println("При отправке ответа произошло исключение" + exception.getMessage());
+                    logger.error("При отправке заголовка ответа произошло исключение" + exception.getMessage());
+                    throw new ResponseFailedException("При отправке заголовка ответа произошло исключение" +
+                            exception.getMessage());
                 }
                 try (OutputStream os = exchange.getResponseBody()) {
                     os.write(bytes);
                 } catch (IOException exception) {
-                    System.out.println("При отправке ответа произошло исключение" + exception.getMessage());
+                    logger.error("При отправке тела ответа произошло исключение" + exception.getMessage());
+                    throw new ResponseFailedException("При отправке тела ответа произошло исключение" +
+                            exception.getMessage());
                 }
             }
             exchange.close();

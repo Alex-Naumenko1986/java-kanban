@@ -7,9 +7,13 @@ import model.Epic;
 import model.Status;
 import model.Subtask;
 import model.Task;
+import org.apache.log4j.LogManager;
+import org.apache.log4j.Logger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import server.exceptions.RequestFailedException;
+import server.exceptions.ServerCreateException;
 import service.Managers;
 import service.task.TaskManager;
 
@@ -36,19 +40,23 @@ class HttpTaskServerTest {
     private Subtask subtask1;
     private Task task2;
     private Subtask subtask2;
+    private Logger logger;
 
     @BeforeEach
     void beforeEach() {
+        logger = LogManager.getLogger(HttpTaskServerTest.class);
         try {
             kvServer = new KVServer();
         } catch (IOException e) {
-            System.out.println("При создании KVServer возникло исключение " + e);
+            logger.error("При создании KVServer возникло исключение " + e);
+            throw new ServerCreateException("При создании KVServer возникло исключение " + e);
         }
         kvServer.start();
         try {
             httpTaskServer = new HttpTaskServer();
         } catch (IOException e) {
-            System.out.println("При создании httpTaskServer возникло исключение " + e);
+            logger.error("При создании httpTaskServer возникло исключение " + e);
+            throw new ServerCreateException("При создании HttpTaskServer возникло исключение " + e);
         }
         client = HttpClient.newHttpClient();
         gson = Managers.getGson();
@@ -99,8 +107,8 @@ class HttpTaskServerTest {
             assertEquals(task1, tasks.get(0), "Задачи не совпадают");
             assertEquals(task2, tasks.get(1), "Задачи не совпадают");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -116,8 +124,8 @@ class HttpTaskServerTest {
             List<Task> tasks = gson.fromJson(response.body(), taskListType);
             assertTrue(tasks.isEmpty(), "Список задач не пустой");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -135,8 +143,8 @@ class HttpTaskServerTest {
             assertEquals(epic1, epics.get(0), "Эпики не совпадают");
             assertEquals(epic2, epics.get(1), "Эпики не совпадают");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -152,8 +160,8 @@ class HttpTaskServerTest {
             List<Epic> epics = gson.fromJson(response.body(), epicListType);
             assertTrue(epics.isEmpty(), "Список эпиков не пустой");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -171,8 +179,8 @@ class HttpTaskServerTest {
             assertEquals(subtask1, subtasks.get(0), "Подзадачи не совпадают");
             assertEquals(subtask2, subtasks.get(1), "Подзадачи не совпадают");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -188,8 +196,8 @@ class HttpTaskServerTest {
             List<Subtask> subtasks = gson.fromJson(response.body(), subtaskListType);
             assertTrue(subtasks.isEmpty(), "Список подзадач не пустой");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -211,8 +219,8 @@ class HttpTaskServerTest {
             assertEquals(expectedPrioritizedTasks, prioritizedTasks, "Список задач по приоритету" +
                     "не совпадает");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -234,8 +242,8 @@ class HttpTaskServerTest {
             List<Task> prioritizedTasks = gsonWithFactory.fromJson(response.body(), taskListType);
             assertTrue(prioritizedTasks.isEmpty(), "Список задач по приоритету не пустой");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -261,8 +269,8 @@ class HttpTaskServerTest {
             List<Task> expectedHistory = List.of(task1, epic1, epic2, subtask1);
             assertEquals(expectedHistory, history, "Полученная история не совпадает с ожидаемой");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -282,8 +290,8 @@ class HttpTaskServerTest {
             List<Task> history = gsonWithFactory.fromJson(response.body(), taskListType);
             assertTrue(history.isEmpty(), "История не пустая");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -300,8 +308,8 @@ class HttpTaskServerTest {
             assertNotNull(task, "Полученная задача равна null");
             assertEquals(task1, task, "Задачи не совпадают");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -318,8 +326,8 @@ class HttpTaskServerTest {
             Task task = gson.fromJson(response.body(), taskType);
             assertNull(task, "Полученная задача не равна null");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -335,8 +343,8 @@ class HttpTaskServerTest {
             Task task = gson.fromJson(response.body(), taskType);
             assertNull(task, "Полученная задача не равна null");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -353,8 +361,8 @@ class HttpTaskServerTest {
             assertNotNull(subtask, "Полученная подзадача равна null");
             assertEquals(subtask1, subtask, "Подзадачи не совпадают");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -371,8 +379,8 @@ class HttpTaskServerTest {
             Subtask subtask = gson.fromJson(response.body(), subtaskType);
             assertNull(subtask, "Полученная подзадача не равна null");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -388,8 +396,8 @@ class HttpTaskServerTest {
             Subtask subtask = gson.fromJson(response.body(), subtaskType);
             assertNull(subtask, "Полученная подзадача не равна null");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -406,8 +414,8 @@ class HttpTaskServerTest {
             assertNotNull(epic, "Полученный эпик равен null");
             assertEquals(epic1, epic, "Эпики не совпадают");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -424,8 +432,8 @@ class HttpTaskServerTest {
             Epic epic = gson.fromJson(response.body(), epicType);
             assertNull(epic, "Полученный эпик не равен null");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -441,8 +449,8 @@ class HttpTaskServerTest {
             Epic epic = gson.fromJson(response.body(), epicType);
             assertNull(epic, "Полученный эпик не равен null");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -462,8 +470,8 @@ class HttpTaskServerTest {
             assertEquals(2, subtasks.size(), "Неверный размер полученного списка подзадач");
             assertEquals(expectedSubtasks, subtasks, "Списки подзадач не совпадают");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -480,8 +488,8 @@ class HttpTaskServerTest {
             List<Subtask> subtasks = gson.fromJson(response.body(), subtaskListType);
             assertTrue(subtasks.isEmpty(), "Список подзадач эпика не пустой");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -497,8 +505,8 @@ class HttpTaskServerTest {
             List<Subtask> subtasks = gson.fromJson(response.body(), subtaskListType);
             assertTrue(subtasks.isEmpty(), "Список подзадач эпика не пустой");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -515,8 +523,8 @@ class HttpTaskServerTest {
             int id = jsonObject.get("id").getAsInt();
             assertEquals(7, id, "Полученное id новой задачи не равно 7");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -534,8 +542,8 @@ class HttpTaskServerTest {
             int id = jsonObject.get("id").getAsInt();
             assertEquals(-1, id, "Задача, пересекающаяся по времени, была добавлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -552,8 +560,8 @@ class HttpTaskServerTest {
             int id = jsonObject.get("id").getAsInt();
             assertEquals(7, id, "Полученное id новой подзадачи не равно 7");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -572,8 +580,8 @@ class HttpTaskServerTest {
             int id = jsonObject.get("id").getAsInt();
             assertEquals(-1, id, "Подзадача, пересекающаяся по времени, была добавлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -592,8 +600,8 @@ class HttpTaskServerTest {
             int id = jsonObject.get("id").getAsInt();
             assertEquals(-1, id, "Подзадача с неверным id эпика была добавлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -610,8 +618,8 @@ class HttpTaskServerTest {
             int id = jsonObject.get("id").getAsInt();
             assertEquals(7, id, "Полученное id нового эпика не равно 7");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -628,8 +636,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertTrue(isUpdated, "Задача не обновлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -647,8 +655,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertFalse(isUpdated, "Задача была обновлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -665,8 +673,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertFalse(isUpdated, "Задача с неверным идентификатором была обновлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -685,8 +693,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertFalse(isUpdated, "Задача была обновлена с пересечением по времени");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -705,8 +713,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertTrue(isUpdated, "Подзадача не обновлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -725,8 +733,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertFalse(isUpdated, "Подзадача с неверным идентификатором была обновлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -745,8 +753,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertFalse(isUpdated, "Подзадача с неверным идентификатором эпика была обновлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -766,8 +774,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertFalse(isUpdated, "Подзадача, пересекающаяся по времени, была обновлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -786,8 +794,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertFalse(isUpdated, "Подзадача, пересекающаяся по времени, была обновлена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -804,8 +812,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertTrue(isUpdated, "Эпик не был обновлен");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -823,8 +831,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertFalse(isUpdated, "Эпик был обновлен");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -841,8 +849,8 @@ class HttpTaskServerTest {
             boolean isUpdated = jsonObject.get("isUpdated").getAsBoolean();
             assertFalse(isUpdated, "Эпик был обновлен");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -858,8 +866,8 @@ class HttpTaskServerTest {
                     "с ожидаемым");
             assertTrue(taskManager.getAllTasks().isEmpty(), "Список задач не пустой");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -875,8 +883,8 @@ class HttpTaskServerTest {
                     "совпадает с ожидаемым");
             assertTrue(taskManager.getAllSubtasks().isEmpty(), "Список подзадач не пустой");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -892,8 +900,8 @@ class HttpTaskServerTest {
                     "совпадает с ожидаемым");
             assertTrue(taskManager.getAllEpics().isEmpty(), "Список эпиков не пустой");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -909,8 +917,8 @@ class HttpTaskServerTest {
             boolean isRemoved = jsonObject.get("isRemoved").getAsBoolean();
             assertTrue(isRemoved, "Задача не была удалена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -927,8 +935,8 @@ class HttpTaskServerTest {
             boolean isRemoved = jsonObject.get("isRemoved").getAsBoolean();
             assertFalse(isRemoved, "Задача была удалена из пустого списка задач");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -944,8 +952,8 @@ class HttpTaskServerTest {
             boolean isRemoved = jsonObject.get("isRemoved").getAsBoolean();
             assertFalse(isRemoved, "Задача была удалена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -961,8 +969,8 @@ class HttpTaskServerTest {
             boolean isRemoved = jsonObject.get("isRemoved").getAsBoolean();
             assertTrue(isRemoved, "Подзадача не была удалена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -978,8 +986,8 @@ class HttpTaskServerTest {
             boolean isRemoved = jsonObject.get("isRemoved").getAsBoolean();
             assertFalse(isRemoved, "Подзадача с неверным идентификатором была удалена");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -996,8 +1004,8 @@ class HttpTaskServerTest {
             boolean isRemoved = jsonObject.get("isRemoved").getAsBoolean();
             assertFalse(isRemoved, "Подзадача была удалена из пустого списка");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -1013,8 +1021,8 @@ class HttpTaskServerTest {
             boolean isRemoved = jsonObject.get("isRemoved").getAsBoolean();
             assertTrue(isRemoved, "Эпик не был удален");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -1031,8 +1039,8 @@ class HttpTaskServerTest {
             boolean isRemoved = jsonObject.get("isRemoved").getAsBoolean();
             assertFalse(isRemoved, "Эпик был удален из пустого списка");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -1048,8 +1056,8 @@ class HttpTaskServerTest {
             boolean isRemoved = jsonObject.get("isRemoved").getAsBoolean();
             assertFalse(isRemoved, "Эпик c неверным идентификатором был удален");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 
@@ -1064,8 +1072,8 @@ class HttpTaskServerTest {
             assertEquals("Неверный запрос", responseAsString, "Ответ сервера не совпадает" +
                     "с ожидаемым");
         } catch (IOException | InterruptedException e) {
-            System.out.println("При отправке запроса на сервер возникло ислючение: " + e);
-            ;
+            logger.error("При отправке запроса на сервер возникло ислючение: " + e);
+            throw new RequestFailedException("При отправке запроса на сервер возникло ислючение: " + e);
         }
     }
 }
