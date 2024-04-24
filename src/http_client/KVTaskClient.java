@@ -22,7 +22,6 @@ public class KVTaskClient {
             api_token = response.body();
         } catch (IOException | InterruptedException e) {
             System.out.println("Во время отправки запроса на KVServer возникло исключение " + e);
-            ;
         }
     }
 
